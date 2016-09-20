@@ -18,7 +18,9 @@ namespace UnrealBuildTool
 
         // Location of the shared cache, it could be a local or network path (i.e: "\\\\DESKTOP-BEAST\\FASTBuildCache").
         // Note: an empty string ("") means caching is disabled.
-        private static string CachePath = ""; //"\\\\DESKTOP-BEAST\\FASTBuildCache";   
+// DNE BEGIN
+        private static string CachePath = @"\\fastbuild\fastbuild\cache";
+// DNE END
 
         public enum eCacheMode
         {
@@ -397,6 +399,10 @@ namespace UnrealBuildTool
 
 			AddText("}\n\n"); //End compiler
 
+// DNE BEGIN
+			AddText(string.Format(".DXSDK_DIR = '{0}'\n", Environment.GetEnvironmentVariable("DXSDK_DIR") ?? ""));
+// DNE END
+
 			if (envVars.ContainsKey("DurangoXDK"))
 			{
 				AddText(string.Format("\n.DurangoXDK = '{0}'\n", envVars["DurangoXDK"]));
@@ -409,7 +415,10 @@ namespace UnrealBuildTool
 				AddText("\t\t'$Root$/c1xx.dll'\n");
 				AddText("\t\t'$Root$/c1xxast.dll'\n");
 				AddText("\t\t'$Root$/c2.dll'\n");
+// DNE BEGIN
+				// FIXME: this is a per-locale value and depends on the VS setup
 				AddText("\t\t'$Root$/1033/clui.dll'\n");
+// DNE END
 				AddText("\t\t'$Root$/mspdbsrv.exe'\n");
 				AddText("\t\t'$Root$/mspdbcore.dll'\n");
 				AddText("\t\t'$Root$/vcmeta.dll'\n");
@@ -781,10 +790,14 @@ namespace UnrealBuildTool
             string distArgument = bEnableDistribution ? "-dist" : "";
 
 
-            string FBCommandLine = string.Format("-summary {0} {1} -noprogress -config {2}", distArgument, cacheArgument, BffFilePath);
+// DNE BEGIN (remove -noprogress)
+            string FBCommandLine = string.Format("-summary {0} {1} -config {2}", distArgument, cacheArgument, BffFilePath);
+// DNE END
 
 			//Interesting flags for FASTBuild: -nostoponerror, -verbose
-			ProcessStartInfo FBStartInfo = new ProcessStartInfo("fbuild", FBCommandLine);
+// DNE BEGIN
+			ProcessStartInfo FBStartInfo = new ProcessStartInfo(Path.Combine(BuildConfiguration.RelativeEnginePath, "Binaries", "ThirdParty", "FastBuild", "Windows", "fbuild"), FBCommandLine);
+// DNE END
 
 			FBStartInfo.UseShellExecute = false;
 			FBStartInfo.WorkingDirectory = Path.Combine(BuildConfiguration.RelativeEnginePath, "Source");
