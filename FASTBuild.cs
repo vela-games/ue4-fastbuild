@@ -14,29 +14,28 @@ namespace UnrealBuildTool
 {
 	public class FASTBuild
 	{
-        /*---- Configurable User settings ----*/
 
-        // Location of the shared cache, it could be a local or network path (i.e: "\\\\DESKTOP-BEAST\\FASTBuildCache").
-        // Note: an empty string ("") means caching is disabled.
+		// Location of the shared cache, it could be a local or network path (i.e: "\\\\DESKTOP-BEAST\\FASTBuildCache").
+		// Note: an empty string ("") means caching is disabled.
 // DNE BEGIN
-        private static string CachePath = @"\\fastbuild\fastbuild\cache";
+		private static string CachePath = @"\\fastbuild\fastbuild\cache";
 // DNE END
 
-        public enum eCacheMode
-        {
-            ReadWrite,
-            ReadOnly,
-            WriteOnly,
-        }
+		public enum eCacheMode
+		{
+			ReadWrite,
+			ReadOnly,
+			WriteOnly,
+		}
 
-        // Cache access mode
-        private static eCacheMode CacheMode = eCacheMode.ReadWrite; 
+		// Cache access mode
+		private static eCacheMode CacheMode = eCacheMode.ReadWrite; 
 
 
-        private static bool bEnableDistribution = true;     // Allows to enable/disable build distribution
-        /*--------------------------------------*/
+		private static bool bEnableDistribution = true;     // Set to true to enable network build distribution
+		/*--------------------------------------*/
 
-        public enum ExecutionResult
+		public enum ExecutionResult
 		{
 			Unavailable,
 			TasksFailed,
@@ -115,10 +114,24 @@ namespace UnrealBuildTool
 
 			// Some tricky defines /DTROUBLE=\"\\\" abc  123\\\"\" aren't handled properly by either Unreal or Fastbuild, but we do our best.
 			char[] SpaceChar = { ' ' };
-			string[] RawTokens = CompilerCommandLine.Split(' ');
+			string[] RawTokens = CompilerCommandLine.Trim().Split(' ');
 			List<string> ProcessedTokens = new List<string>();
 			bool QuotesOpened = false;
 			string PartialToken = "";
+
+			if(RawTokens.Length == 1 && RawTokens[0].StartsWith("@\"")) //Response files only in UE4 4.13 by default. Changing VCToolChain to not do this is probably better.
+			{
+				string responseFilePath = RawTokens[0].Substring(2, RawTokens[0].Length - 3); // bit of a bodge to get the @"response.txt" path...
+				try
+				{
+					if (File.Exists(responseFilePath))
+						RawTokens = File.ReadAllText(responseFilePath).Split(' '); //Certainly not ideal 
+				}
+				catch(Exception e)
+				{
+					Console.WriteLine("Looks like a response file in: " + CompilerCommandLine + ", but we could not load it! " + e.Message);
+				}
+			}
 
 			// Raw tokens being split with spaces may have split up some two argument options and 
 			// paths with multiple spaces in them also need some love
@@ -346,6 +359,27 @@ namespace UnrealBuildTool
 			return Value;
 		}
 
+		public static string GetRegistryValue(string keyName, string valueName, object defaultValue)
+		{
+			object returnValue = (string)Microsoft.Win32.Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\" + keyName, valueName, defaultValue);
+			if (returnValue != null)
+				return returnValue.ToString();
+
+			returnValue = Microsoft.Win32.Registry.GetValue("HKEY_CURRENT_USER\\SOFTWARE\\" + keyName, valueName, defaultValue);
+			if (returnValue != null)
+				return returnValue.ToString();
+
+			returnValue = (string)Microsoft.Win32.Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\" + keyName, valueName, defaultValue);
+			if (returnValue != null)
+				return returnValue.ToString();
+
+			returnValue = Microsoft.Win32.Registry.GetValue("HKEY_CURRENT_USER\\SOFTWARE\\Wow6432Node\\" + keyName, valueName, defaultValue);
+			if (returnValue != null)
+				return returnValue.ToString();
+
+			return defaultValue.ToString();
+		}
+
 		private static void WriteEnvironmentSetup()
 		{
 			VCEnvironment VCEnv = VCEnvironment.SetEnvironment(CPPTargetPlatform.Win64, false);
@@ -374,7 +408,8 @@ namespace UnrealBuildTool
 			AddText("\t\t'$Root$/amd64/c1.dll'\n");
 			AddText("\t\t'$Root$/amd64/c1xx.dll'\n");
 			AddText("\t\t'$Root$/amd64/c2.dll'\n");
-			AddText("\t\t'$Root$/amd64/1033/clui.dll'\n");
+			string InstalledLocalization = GetRegistryValue(@"Microsoft\VisualStudio\14.0\General", "UILanguage", "1033");
+			AddText(string.Format("\t\t'$Root$/amd64/{0}/clui.dll'\n",InstalledLocalization));
 			AddText("\t\t'$Root$/amd64/mspdbsrv.exe'\n");
 			AddText("\t\t'$Root$/amd64/mspdbcore.dll'\n");
 
@@ -384,12 +419,12 @@ namespace UnrealBuildTool
 				platformVersionNumber = "120";
 			}
 
-            /* Maybe not needed to compile anymore?
+			/* Maybe not needed to compile anymore?
 			if(!WindowsPlatform.bUseWindowsSDK10)
 				AddText(string.Format("\t\t'$VSBasePath$/VC/redist/x64/Microsoft.VC{0}.CRT/msvcr{1}.dll'\n", platformVersionNumber, platformVersionNumber));
 			else
 				AddText("\t\t'$WindowsSDKBasePath$/Redist/ucrt/DLLs/x64/ucrtbase.dll'\n\n");
-            */
+			*/
 			AddText(string.Format("\t\t'$Root$/amd64/mspft{0}.dll'\n",platformVersionNumber));
 			AddText(string.Format("\t\t'$Root$/amd64/msobj{0}.dll'\n", platformVersionNumber));
 			AddText(string.Format("\t\t'$Root$/amd64/mspdb{0}.dll'\n", platformVersionNumber));
@@ -448,14 +483,14 @@ namespace UnrealBuildTool
 
 			AddText("Settings \n{\n");
 
-            // Optional cachePath user setting
-            if (CachePath != "")
-            {
-                AddText(string.Format("\t.CachePath = '{0}'\n", CachePath));
-            }
+			// Optional cachePath user setting
+			if (CachePath != "")
+			{
+				AddText(string.Format("\t.CachePath = '{0}'\n", CachePath));
+			}
 
-            //Start Environment
-            AddText("\t.Environment = \n\t{\n");
+			//Start Environment
+			AddText("\t.Environment = \n\t{\n");
 			AddText("\t\t\"PATH=$VSBasePath$\\Common7\\IDE\\;$VSBasePath$\\VC\\bin\\\",\n");
 			if (envVars.ContainsKey("TMP"))
 				AddText(string.Format("\t\t\"TMP={0}\",\n", envVars["TMP"]));
@@ -765,33 +800,33 @@ namespace UnrealBuildTool
 			{
 				Console.WriteLine("Exception while creating bff file: " + e.ToString());
 			}
-        }
+		}
 
 		private static ExecutionResult ExecuteBffFile(string BffFilePath)
 		{
-            string cacheArgument = "";
+			string cacheArgument = "";
 
-            if (CachePath != "")
-            {
-                switch (CacheMode)
-                {
-                    case eCacheMode.ReadOnly:
-                        cacheArgument = "-cacheread";
-                        break;
-                    case eCacheMode.WriteOnly:
-                        cacheArgument = "-cachewrite";
-                        break;
-                    case eCacheMode.ReadWrite:
-                        cacheArgument = "-cache";
-                        break;
-                }
-            }
+			if (CachePath != "")
+			{
+				switch (CacheMode)
+				{
+					case eCacheMode.ReadOnly:
+						cacheArgument = "-cacheread";
+						break;
+					case eCacheMode.WriteOnly:
+						cacheArgument = "-cachewrite";
+						break;
+					case eCacheMode.ReadWrite:
+						cacheArgument = "-cache";
+						break;
+				}
+			}
 
-            string distArgument = bEnableDistribution ? "-dist" : "";
+			string distArgument = bEnableDistribution ? "-dist" : "";
 
 
 // DNE BEGIN (remove -noprogress)
-            string FBCommandLine = string.Format("-summary {0} {1} -config {2}", distArgument, cacheArgument, BffFilePath);
+			string FBCommandLine = string.Format("-summary {0} {1} -config {2}", distArgument, cacheArgument, BffFilePath);
 // DNE END
 
 			//Interesting flags for FASTBuild: -nostoponerror, -verbose
