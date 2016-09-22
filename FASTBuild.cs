@@ -702,11 +702,13 @@ namespace UnrealBuildTool
 				if (DependencyIndices.Count > 0) //Insert a dummy node to make sure all of the dependencies are finished.
 												 //If FASTBuild supports PreBuildDependencies on the Executable action we can remove this.
 				{
-					AddText(string.Format("Copy('Action_{0}_dummy')\n{{ \n", ActionIndex));
-					AddText(string.Format("\t.Source = '{0}' \n",ResponseFilePath));
-					AddText(string.Format("\t.Dest = '{0}' \n", ResponseFilePath + ".dummy"));
-					List<string> DependencyNames = DependencyIndices.ConvertAll(x => string.Format("\t\t'Action_{0}', ;{1}", x, Actions[x].StatusDescription));
-					AddText(string.Format("\t.PreBuildDependencies = {{\n{0}\n\t}} \n", string.Join("\n", DependencyNames.ToArray())));
+					AddText(string.Format("Exec('Action_{0}_dummy')\n{{\n", ActionIndex));
+					AddText(string.Format("\t.ExecExecutable = 'c:\\Windows\\system32\\cmd.exe'\n"));
+					// Use type instead of copy so that the resulting file has an updated timestamp
+					AddText(string.Format("\t.ExecArguments = '/c \"type {0} > {1}\"'\n", ResponseFilePath, ResponseFilePath + ".dummy"));
+					List<string> DependencyNames = DependencyIndices.ConvertAll(x => string.Format("\t\t'Action_{0}', ; {1}\n", x, Actions[x].StatusDescription));
+					AddText(string.Format("\t.ExecInput = {{\n\t\t'{0}',\n{1}\t}}\n", ResponseFilePath, string.Join("", DependencyNames.ToArray())));
+					AddText(string.Format("\t.ExecOutput = '{0}'\n", ResponseFilePath + ".dummy"));
 					AddText(string.Format("}}\n\n"));
 				}
 
