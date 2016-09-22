@@ -842,8 +842,8 @@ namespace UnrealBuildTool
 			string distArgument = bEnableDistribution ? "-dist" : "";
 
 
-// DNE BEGIN (remove -noprogress)
-			string FBCommandLine = string.Format("-summary {0} {1} -config {2}", distArgument, cacheArgument, BffFilePath);
+// DNE BEGIN (remove -noprogress and add -wrapper)
+			string FBCommandLine = string.Format("-summary {0} {1} -wrapper -config {2}", distArgument, cacheArgument, BffFilePath);
 // DNE END
 
 			//Interesting flags for FASTBuild: -nostoponerror, -verbose
