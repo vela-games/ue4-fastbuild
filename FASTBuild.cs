@@ -843,7 +843,7 @@ namespace UnrealBuildTool
 			string distArgument = bEnableDistribution ? "-dist" : "";
 
 
-			string FBCommandLine = string.Format("-summary {0} {1} -noprogress -config {2}", distArgument, cacheArgument, BffFilePath);
+			string FBCommandLine = string.Format("-summary {0} {1} -noprogress -wrapper -config {2}", distArgument, cacheArgument, BffFilePath);
 
 			//Interesting flags for FASTBuild: -nostoponerror, -verbose
 			ProcessStartInfo FBStartInfo = new ProcessStartInfo("fbuild", FBCommandLine);
