@@ -868,7 +868,7 @@ namespace UnrealBuildTool
 			string distArgument = bEnableDistribution ? "-dist" : "";
 
 
-// DNE BEGIN (remove -noprogress and add -wrapper)
+// DNE BEGIN (remove -noprogress)
 			string FBCommandLine = string.Format("-summary {0} {1} -wrapper -config {2}", distArgument, cacheArgument, BffFilePath);
 // DNE END
 
